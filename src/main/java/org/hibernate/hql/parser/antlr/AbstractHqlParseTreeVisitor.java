@@ -23,6 +23,7 @@ import org.hibernate.hql.parser.SemanticException;
 import org.hibernate.hql.parser.antlr.path.AttributePathPart;
 import org.hibernate.hql.parser.antlr.path.AttributePathResolver;
 import org.hibernate.hql.parser.model.CollectionTypeDescriptor;
+import org.hibernate.hql.parser.model.EntityTypeDescriptor;
 import org.hibernate.hql.parser.model.TypeDescriptor;
 import org.hibernate.hql.parser.semantic.QuerySpec;
 import org.hibernate.hql.parser.semantic.SelectStatement;
@@ -32,6 +33,7 @@ import org.hibernate.hql.parser.semantic.expression.ConcatExpression;
 import org.hibernate.hql.parser.semantic.expression.ConstantEnumExpression;
 import org.hibernate.hql.parser.semantic.expression.ConstantExpression;
 import org.hibernate.hql.parser.semantic.expression.ConstantFieldExpression;
+import org.hibernate.hql.parser.semantic.expression.EntityTypeExpression;
 import org.hibernate.hql.parser.semantic.expression.Expression;
 import org.hibernate.hql.parser.semantic.expression.FromElementReferenceExpression;
 import org.hibernate.hql.parser.semantic.expression.FunctionExpression;
@@ -405,6 +407,32 @@ public abstract class AbstractHqlParseTreeVisitor extends HqlParserBaseVisitor {
 			throw new SemanticException( "Path argument to MEMBER OF must be a collection" );
 		}
 		return new MemberOfPredicate( attributeReference );
+	}
+
+	@Override
+	public Object visitSimplePath(HqlParser.SimplePathContext ctx) {
+		final AttributePathPart attributePathPart = getCurrentAttributePathResolver().resolvePath( ctx.dotIdentifierSequence() );
+		if ( attributePathPart != null ) {
+			return attributePathPart;
+		}
+
+		final String pathText = ctx.getText();
+
+		final EntityTypeDescriptor entityType = parsingContext.getConsumerContext().resolveEntityReference( pathText );
+		if ( entityType != null ) {
+			return new EntityTypeExpression( entityType );
+		}
+
+		// 5th level precedence : constant reference
+		try {
+			return resolveConstantExpression( pathText );
+		}
+		catch (SemanticException e) {
+			log.debug( e.getMessage() );
+		}
+
+		// if we get here we had a problem interpreting the dot-ident sequence
+		throw new SemanticException( "Could not interpret token : " + pathText );
 	}
 
 	@SuppressWarnings("unchecked")
