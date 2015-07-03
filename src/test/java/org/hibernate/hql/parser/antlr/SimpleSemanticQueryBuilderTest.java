@@ -108,5 +108,7 @@ public class SimpleSemanticQueryBuilderTest {
 		SelectStatement selectStatement = semanticQueryBuilder.visitSelectStatement( parser.selectStatement() );
 		QuerySpec querySpec = selectStatement.getQuerySpec();
 		assertNotNull( querySpec );
+//		ParseTreeWalker.DEFAULT.walk( new HqlParseTreePrinter( parser ), (ParseTree) selectStatement );
+
 	}
 }
