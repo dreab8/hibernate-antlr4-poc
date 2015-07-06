@@ -73,17 +73,17 @@ public class SemanticQueryBuilder extends AbstractHqlParseTreeVisitor {
 		}
 	}
 
-	@Override
-	public Predicate visitQualifiedJoinPredicate(HqlParser.QualifiedJoinPredicateContext ctx) {
-		attributePathResolverStack.push( new JoinPredicatePathResolverImpl( currentFromClause ) );
-		try {
-			// todo : need a way to identify left and right hand sides of this join to be able to:
-			//		1) validate predicate
-			//		2) link predicate with right hand side
-			return super.visitQualifiedJoinPredicate( ctx );
-		}
-		finally {
-			attributePathResolverStack.pop();
-		}
-	}
+//	@Override
+//	public Predicate visitQualifiedJoinPredicate(HqlParser.QualifiedJoinPredicateContext ctx) {
+//		attributePathResolverStack.push( new JoinPredicatePathResolverImpl( currentFromClause ) );
+//		try {
+//			// todo : need a way to identify left and right hand sides of this join to be able to:
+//			//		1) validate predicate
+//			//		2) link predicate with right hand side
+//			return super.visitQualifiedJoinPredicate( ctx );
+//		}
+//		finally {
+//			attributePathResolverStack.pop();
+//		}
+//	}
 }
