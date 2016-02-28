@@ -153,6 +153,9 @@ public class DomainMetamodelImpl implements DomainMetamodel {
 	}
 
 	public org.hibernate.sqm.domain.Type toSqmType(Type ormType) {
+		if(ormType == null){
+			return null;
+		}
 		if ( ormType.isAnyType() ) {
 			return toSqmType( (AnyType) ormType );
 		}
@@ -172,10 +175,14 @@ public class DomainMetamodelImpl implements DomainMetamodel {
 	}
 
 	public org.hibernate.sqm.domain.BasicType toSqmType(org.hibernate.type.BasicType ormBasicType) {
-		org.hibernate.sqm.domain.BasicType descriptor = basicTypeMap.get( ormBasicType.getReturnedClass() );
-		if ( descriptor == null ) {
-			descriptor = new BasicTypeImpl( ormBasicType );
-			basicTypeMap.put( ormBasicType.getReturnedClass(), descriptor );
+		org.hibernate.sqm.domain.BasicType descriptor = null;
+		if ( ormBasicType != null ) {
+			descriptor = basicTypeMap.get( ormBasicType.getReturnedClass() );
+
+			if ( descriptor == null ) {
+				descriptor = new BasicTypeImpl( ormBasicType );
+				basicTypeMap.put( ormBasicType.getReturnedClass(), descriptor );
+			}
 		}
 		return descriptor;
 	}

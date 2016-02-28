@@ -50,7 +50,7 @@ public class EntityTypeImpl implements EntityType {
 						collectionMetadata.getElementClassification(),
 						modelMetadata.toSqmType( collectionMetadata.getCollectionIdType() ),
 						modelMetadata.toSqmType( collectionMetadata.getIndexType() ),
-						modelMetadata.toSqmType( collectionMetadata.getElementType() )
+						this
 				);
 			}
 			else {
