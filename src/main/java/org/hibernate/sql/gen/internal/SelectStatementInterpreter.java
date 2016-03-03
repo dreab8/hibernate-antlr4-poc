@@ -5,19 +5,28 @@ import java.util.Collections;
 import java.util.List;
 
 import org.hibernate.AssertionFailure;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.loader.plan.spi.Return;
+import org.hibernate.persister.collection.CollectionPersister;
 import org.hibernate.sql.ast.SelectQuery;
 import org.hibernate.sql.ast.from.EntityTableSpecificationGroup;
 import org.hibernate.sql.ast.from.TableSpace;
+import org.hibernate.sql.ast.from.TableSpecificationGroup;
+import org.hibernate.sql.ast.from.TableSpecificationGroupJoin;
+import org.hibernate.sql.ast.predicate.Predicate;
 import org.hibernate.sql.gen.Callback;
 import org.hibernate.sql.gen.JdbcSelectPlan;
 import org.hibernate.sql.gen.NotYetImplementedException;
 import org.hibernate.sql.gen.ParameterBinder;
 import org.hibernate.sql.gen.QueryOptionBinder;
 import org.hibernate.sql.orm.QueryOptions;
+import org.hibernate.sql.orm.internal.mapping.ImprovedCollectionPersister;
+import org.hibernate.sql.orm.internal.mapping.ImprovedCollectionPersisterImpl;
 import org.hibernate.sql.orm.internal.mapping.ImprovedEntityPersister;
 import org.hibernate.sql.orm.internal.sqm.model.EntityTypeImpl;
 import org.hibernate.sqm.SemanticQueryWalker;
+import org.hibernate.sqm.domain.Attribute;
+import org.hibernate.sqm.domain.PluralAttribute;
 import org.hibernate.sqm.parser.internal.path.resolution.TreatedFromElement;
 import org.hibernate.sqm.query.DeleteStatement;
 import org.hibernate.sqm.query.InsertSelectStatement;
@@ -98,15 +107,12 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 
 	public static JdbcSelectPlan interpret(SelectStatement statement, QueryOptions queryOptions, Callback callback) {
 		final SelectStatementInterpreter walker = new SelectStatementInterpreter( queryOptions, callback );
-		walker.visitSelectStatement( statement );
+		return walker.interpret( statement );
+	}
 
+	protected JdbcSelectPlan interpret(SelectStatement statement) {
+		visitSelectStatement( statement );
 		return null;
-//		return new JdbcSelectPlanImpl(
-//				walker.getSql(),
-//				walker.getParameterBinders(),
-//				walker.getOptionBinders(),
-//				walker.getReturnDescriptors()
-//		);
 	}
 
 	private final QueryOptions queryOptions;
@@ -122,7 +128,7 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 
 	private final SqlAliasBaseManager sqlAliasBaseManager = new SqlAliasBaseManager();
 
-	private SelectStatementInterpreter(QueryOptions queryOptions, Callback callback) {
+	protected SelectStatementInterpreter(QueryOptions queryOptions, Callback callback) {
 		this.queryOptions = queryOptions;
 		this.callback = callback;
 	}
@@ -154,7 +160,6 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 	}
 
 
-
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// walker
 
@@ -182,8 +187,10 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 
 		sqlAst = new SelectQuery( visitQuerySpec( statement.getQuerySpec() ) );
 
-		for ( SortSpecification sortSpecification : statement.getOrderByClause().getSortSpecifications() ) {
-			sqlAst.addSortSpecification( visitSortSpecification( sortSpecification ) );
+		if ( statement.getOrderByClause() != null ) {
+			for ( SortSpecification sortSpecification : statement.getOrderByClause().getSortSpecifications() ) {
+				sqlAst.addSortSpecification( visitSortSpecification( sortSpecification ) );
+			}
 		}
 
 		return sqlAst;
@@ -240,7 +247,8 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 		try {
 			visitRootEntityFromElement( fromElementSpace.getRoot() );
 			for ( JoinedFromElement joinedFromElement : fromElementSpace.getJoins() ) {
-				joinedFromElement.accept( this );
+				tableSpace.addJoinedTableSpecificationGroup( (TableSpecificationGroupJoin) joinedFromElement.accept(
+						this ) );
 			}
 			return tableSpace;
 		}
@@ -267,6 +275,50 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 	}
 
 	@Override
+	public TableSpecificationGroupJoin visitQualifiedAttributeJoinFromElement(QualifiedAttributeJoinFromElement joinedFromElement) {
+		final EntityTypeImpl entityTypeDescriptor = (EntityTypeImpl) joinedFromElement.getIntrinsicSubclassIndicator();
+		final ImprovedEntityPersister entityPersister = entityTypeDescriptor.getPersister();
+		TableSpecificationGroup group = null;
+
+		if ( joinedFromElement.getBoundAttribute() instanceof PluralAttribute ) {
+
+			group = getImprovedCollectionPersister(
+					joinedFromElement,
+					entityPersister.getEntityPersister().getFactory()
+			).getCollectionTableSpecificationGroup(
+					joinedFromElement,
+					tableSpace,
+					sqlAliasBaseManager,
+					fromClauseIndex
+			);
+		}
+		else {
+			group = entityPersister.getEntityTableSpecificationGroup(
+					joinedFromElement,
+					tableSpace,
+					sqlAliasBaseManager,
+					fromClauseIndex
+			);
+		}
+		// todo : determine the Predicate
+		final Predicate predicate = new Predicate() {
+		};
+		return new TableSpecificationGroupJoin( joinedFromElement.getJoinType(), group, predicate );
+	}
+
+	private ImprovedCollectionPersister getImprovedCollectionPersister(
+			QualifiedAttributeJoinFromElement joinedFromElement,
+			SessionFactoryImplementor sessionFactory) {
+		return new ImprovedCollectionPersisterImpl(
+				sessionFactory.getCollectionPersister( getCollectionRole( joinedFromElement ) ) );
+	}
+
+	private String getCollectionRole(QualifiedAttributeJoinFromElement joinedFromElement) {
+		return joinedFromElement.getSubclassIndicator()
+				.getName() + "." + joinedFromElement.getBoundAttribute().getName();
+	}
+
+	@Override
 	public Object visitCrossJoinedFromElement(CrossJoinedFromElement joinedFromElement) {
 		throw new NotYetImplementedException();
 	}
@@ -280,14 +332,6 @@ public class SelectStatementInterpreter implements SemanticQueryWalker {
 	public Object visitQualifiedEntityJoinFromElement(QualifiedEntityJoinFromElement joinedFromElement) {
 		throw new NotYetImplementedException();
 	}
-
-	@Override
-	public Object visitQualifiedAttributeJoinFromElement(QualifiedAttributeJoinFromElement joinedFromElement) {
-		throw new NotYetImplementedException();
-	}
-
-
-
 
 
 	@Override
