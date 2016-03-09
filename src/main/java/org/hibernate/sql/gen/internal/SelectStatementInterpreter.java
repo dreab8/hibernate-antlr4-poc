@@ -33,7 +33,6 @@ import org.hibernate.sql.orm.QueryOptions;
 import org.hibernate.sql.orm.internal.mapping.ImprovedCollectionPersister;
 import org.hibernate.sql.orm.internal.mapping.ImprovedEntityPersister;
 import org.hibernate.sql.orm.internal.mapping.SingularAttributeImplementor;
-import org.hibernate.sql.orm.internal.sqm.model.BasicTypeImpl;
 import org.hibernate.sql.orm.internal.sqm.model.SqmTypeImplementor;
 import org.hibernate.sqm.BaseSemanticQueryWalker;
 import org.hibernate.sqm.domain.PluralAttribute;
@@ -277,9 +276,10 @@ public class SelectStatementInterpreter extends BaseSemanticQueryWalker {
 	}
 
 	@Override
-	public Void visitRootEntityFromElement(RootEntityFromElement rootEntityFromElement) {
+	public Object visitRootEntityFromElement(RootEntityFromElement rootEntityFromElement) {
 		if ( fromClauseIndex.isResolved( rootEntityFromElement ) ) {
-			return null;
+			final TableGroup resolvedTableGroup = fromClauseIndex.findResolvedTableGroup( rootEntityFromElement );
+			return resolvedTableGroup.resolveEntityReference( extractOrmType( rootEntityFromElement.getExpressionType() ) );
 		}
 
 		final ImprovedEntityPersister entityPersister = (ImprovedEntityPersister) rootEntityFromElement.getBoundModelType();

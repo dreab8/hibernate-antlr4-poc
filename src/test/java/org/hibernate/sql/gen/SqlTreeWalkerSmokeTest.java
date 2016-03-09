@@ -19,6 +19,7 @@ import org.hibernate.sqm.query.SelectStatement;
 
 import org.junit.Test;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
@@ -41,6 +42,18 @@ public class SqlTreeWalkerSmokeTest extends BaseUnitTest {
 		System.out.println( FormatStyle.BASIC.getFormatter().format( sqlTreeWalker.getSql() ) );
 
 		assertThat( sqlTreeWalker.getSql(), notNullValue() );
+	}
+
+	@Test
+	public void testSqlTreeWalking2() {
+		SelectQuery sqlTree = interpretSelectQuery( "from Person p" );
+		SqlTreeWalker sqlTreeWalker = new SqlTreeWalker( getSessionFactory() );
+		sqlTreeWalker.visitSelectQuery( sqlTree );
+
+		System.out.println( FormatStyle.BASIC.getFormatter().format( sqlTreeWalker.getSql() ) );
+
+		assertThat( sqlTreeWalker.getSql(), notNullValue() );
+		assertThat( sqlTreeWalker.getSql(), is("select distinct p1.id, p1.name from Person as p1") );
 	}
 
 	@Entity(name="Person")

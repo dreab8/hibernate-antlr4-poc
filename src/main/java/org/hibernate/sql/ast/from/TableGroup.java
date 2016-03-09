@@ -8,7 +8,9 @@ package org.hibernate.sql.ast.from;
 
 import java.util.List;
 
+import org.hibernate.sql.ast.expression.EntityReference;
 import org.hibernate.sqm.domain.SingularAttribute;
+import org.hibernate.type.Type;
 
 /**
  * Group together related {@link TableBinding} references (generally related by EntityPersister or CollectionPersister),
@@ -22,4 +24,6 @@ public interface TableGroup {
 	List<TableJoin> getTableJoins();
 
 	ColumnBinding[] resolveBindings(SingularAttribute attribute);
+
+	EntityReference resolveEntityReference(Type ormType);
 }
